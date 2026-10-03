@@ -83,7 +83,13 @@ def main(args):
         mlflow.log_metrics({'mae':mae,'r2':r2})
 
         # Log and Register Model
-        mlflow.sklearn.log_model(model,"tuned_model")
+        mlflow.sklearn.log_model(model,"tuned_model",
+                                 skops_trusted_types=[
+                                                     "sklearn.tree._tree.Tree",
+                                                     "xgboost.core.Booster",
+                                                     "xgboost.sklearn.XGBRegressor",
+                                                     "collections.OrderedDict",
+                                                     ])
         model_name = model_cfg['name']
         model_uri = f'runs:/{mlflow.active_run().info.run_id}/tuned_model'
 
@@ -116,7 +122,7 @@ def main(args):
             f"Features used: All features in the dataset except the target variable\n"
             f"Target variable: {target}\n"
             f"Trained on dataset: {args.data}\n"
-            f"Model saved at: {args.models_dir}/trained/{model_name}.pkl\n"
+            f"Model saved at: {args.model_dir}/trained/{model_name}.pkl\n"
             f"Performance metrics:\n"
             f"  - MAE: {mae:.2f}\n"
             f"  - R²: {r2:.4f}"
