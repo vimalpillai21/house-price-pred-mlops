@@ -29,7 +29,7 @@ def create_features(df):
     logger.info("Creates 'house_age' feature")
 
     # Price per square foot
-    df_featured['price_per_sqft'] = df_featured['price'] / df_featured['sqrt']
+    df_featured['price_per_sqft'] = df_featured['price'] / df_featured['sqft']
     logger.info("Created 'price_per_sqft' feature")
 
     # Bedroom to Bathroom ratio
