@@ -1,0 +1,41 @@
+services:
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    stop_grace_period: 5s
+    environment:
+      MLFLOW_HOST: 0.0.0.0
+      MLFLOW_PORT: 8001
+      MLFLOW_BACKEND_STORAGE_URI: sqlite:////mlflow/mlflow.db # absolute path
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlflow/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib import request; request.urlopen('http://localhost:8001/')"]
+      start_period: 15s
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - mlflow-data:/mlflow
+    ports:
+      - "8001:8001"
+    command: >
+      sh -c "mlflow server --host $$MLFLOW_HOST --port $$MLFLOW_PORT
+      --backend-store-uri $$MLFLOW_BACKEND_STORAGE_URI
+      --default-artifact-root $$MLFLOW_DEFAULT_ARTIFACT_ROOT"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  mlflow-data:
+  
