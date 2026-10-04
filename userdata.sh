@@ -10,7 +10,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 cd $APP_DIR
 git clone https://github.com/vimalpillai21/house-price-pred-mlops .
-git switch dockercompose
+git switch asg-deployment
 uv sync
 source .venv/bin/activate
 
