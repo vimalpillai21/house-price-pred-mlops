@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from inference import predict_price, batch_predict
-from schemas import HousePricePredictionRequest, PredictionResponse
+from .inference import predict_price, batch_predict
+from .schemas import HousePricePredictionRequest, PredictionResponse
 
 # Initialize FastAPI with metadata
 app = FastAPI(
@@ -35,6 +35,6 @@ async def predict(request: HousePricePredictionRequest):
 async def batch_predict_endpoint(requests: list[HousePricePredictionRequest]):
     return batch_predict(requests)
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app",host="0.0.0.0", port=8000,reload=True)
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run("inference_apis:app",host="0.0.0.0", port=8000,reload=True)
