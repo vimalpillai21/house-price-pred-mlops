@@ -1,0 +1,6 @@
+-r requirements-api.txt
+mlflow==3.16.1
+jupyterlab
+ipykernel
+dvc[s3]
+matplotlib
