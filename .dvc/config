@@ -1,0 +1,7 @@
+[core]
+    remote = house
+['remote "house"']
+    url = s3://house-mlops/data/
+    region = ap-south-1
+    connect_timeout = 60
+    read_timeout = 300
