@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlflow-config
+  namespace: kube-dep
+data:
+  MLFLOW_HOST: "0.0.0.0"
+  MLFLOW_PORT: "8001"
+  MLFLOW_BACKEND_STORAGE_URI: "sqlite:////mlflow/mlflow.db"
+  MLFLOW_DEFAULT_ARTIFACT_ROOT: "/mlflow/artifacts"
