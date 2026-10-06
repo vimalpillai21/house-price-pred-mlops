@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kube-dep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      initContainers:
+        - name: wait-for-mlflow
+          image: busybox:latest
+          command: 
+            - sh
+            - -c
+            - until wget -q -o /dev/null http://mlflow-service:8001/; do echo "waiting for mlflow";sleep 3; done
+      containers:
+        - name: api
+          image: "mlops-practice_api:latest"
+          imagePullPolicy: Never
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow-service:8001
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi

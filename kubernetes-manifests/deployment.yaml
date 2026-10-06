@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: kube-dep
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: "mlops-practice_mlflow:latest"
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: mlflow-config
+          command: ["sh", "-c"]
+          args:
+            - > 
+                mlflow server
+                --host $MLFLOW_HOST
+                --port $MLFLOW_PORT
+                --allowed-hosts $MLFLOW_SERVER_ALLOWED_HOSTS
+                --backend-store-uri $MLFLOW_BACKEND_STORAGE_URI
+                --default-artifact-root $MLFLOW_DEFAULT_ARTIFACT_ROOT
+          ports:
+            - containerPort: 8001
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+              httpHeaders:
+                - name: Host
+                  value: localhost:8001
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+              httpHeaders:
+                - name: Host
+                  value: localhost:8001
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+              httpHeaders:
+                - name: Host
+                  value: localhost:8001
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 300m
+              memory: 800Mi
+            limits:
+              memory: 3Gi
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /mlflow
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+
