@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: "mlops-practice_mlflow:latest"
+          image: "vimalpillai/house-price-pred-mlfow-dependency:v1"
           imagePullPolicy: Never
           envFrom:
             - configMapRef:

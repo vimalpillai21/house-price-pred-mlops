@@ -22,7 +22,7 @@ spec:
             - until wget -q -o /dev/null http://mlflow-service:8001/; do echo "waiting for mlflow";sleep 3; done
       containers:
         - name: api
-          image: "mlops-practice_api:latest"
+          image: "vimalpillai/house-price-pred-mlops:v1"
           imagePullPolicy: Never
           env:
             - name: MLFLOW_TRACKING_URI
