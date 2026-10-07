@@ -23,7 +23,7 @@ spec:
       containers:
         - name: api
           image: "vimalpillai/house-price-pred-mlops:v1"
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           env:
             - name: MLFLOW_TRACKING_URI
               value: http://mlflow-service:8001
