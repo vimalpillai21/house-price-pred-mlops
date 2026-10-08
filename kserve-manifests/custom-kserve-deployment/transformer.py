@@ -26,4 +26,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(parents=[model_server.parser])
     args, _ = parser.parse_known_args()
     model = Preprocessor(args.model_name, args.predictor_host, args.protocol)
-    ModelServer.start([model])
+    ModelServer().start([model])

@@ -1,15 +1,15 @@
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: house-custom
+  name: house-price-preprocessor
   namespace: kserve-test
 spec:
   transformer:
     containers:
       - name: kserve-container
-        image: vimalpillai/custom-kserve-transformer:v1
-        imagePullPolicy: IfNotPresent
-        args: ["--model_name", "house price preprocessor"]
+        image: vimalpillai/custom-kserve-transformer:v3
+        imagePullPolicy: Always
+        args: ["--model_name", "house-price-preprocessor"]
   predictor:
     model:
       modelFormat:

@@ -1,0 +1,11 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: house-price-model
+  namespace: kserve-test
+spec:
+  predictor:
+    containers:
+      - name: kserve-single-pod
+        image: vimalpillai/custom-kserve-single-pod-deployment:v1
+        imagePullPolicy: Always
