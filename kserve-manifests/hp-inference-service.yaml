@@ -1,0 +1,18 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: house-price
+  namespace: kserve-test
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: sklearn
+      storageUri: "https://github.com/vimalpillai21/house-price-pred-mlops/releases/download/kserve-pull/house_price_model.pkl"
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "256Mi"
+        limits: 
+          cpu: "1"
+          memory: "1Gi"

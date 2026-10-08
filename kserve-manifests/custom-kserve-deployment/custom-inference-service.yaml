@@ -1,0 +1,17 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: house-custom
+  namespace: kserve-test
+spec:
+  transformer:
+    containers:
+      - name: kserve-container
+        image: vimalpillai/preprocessor:latest
+        imagePullPolicy: Never
+        args: ["--model_name", "house price preprocessor"]
+  predictor:
+    model:
+      modelFormat:
+        name: sklearn
+      storageUri: "https://github.com/vimalpillai21/house-price-pred-mlops/releases/download/kserve-pull/house_price_model.pkl"
