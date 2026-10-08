@@ -7,8 +7,8 @@ spec:
   transformer:
     containers:
       - name: kserve-container
-        image: vimalpillai/preprocessor:latest
-        imagePullPolicy: Never
+        image: vimalpillai/custom-kserve-transformer:v1
+        imagePullPolicy: IfNotPresent
         args: ["--model_name", "house price preprocessor"]
   predictor:
     model:
