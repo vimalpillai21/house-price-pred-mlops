@@ -7,5 +7,5 @@ spec:
   predictor:
     containers:
       - name: kserve-single-pod
-        image: vimalpillai/custom-kserve-single-pod-deployment:v1
+        image: vimalpillai/custom-kserve-single-pod-deployment:v7
         imagePullPolicy: Always
