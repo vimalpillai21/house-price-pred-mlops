@@ -1,0 +1,24 @@
+backendStore:
+  defaultSqlitePath: /mlflow/data/mlflow.db  
+
+artifactRoot:
+  proxiedArtifactStorage: true               
+
+extraArgs:
+  artifactsDestination: /mlflow/data/artifacts
+  allowedHosts: "*"
+
+extraVolumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: mlflow-data
+
+extraVolumeMounts:
+  - name: data
+    mountPath: /mlflow/data
+
+strategy:
+  type: Recreate        
+
+podSecurityContext:
+  fsGroup: 1001         

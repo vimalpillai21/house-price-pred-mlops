@@ -1,0 +1,3 @@
+helm upgrade --install mlflow community-charts/mlflow \
+  --namespace mlflow --create-namespace \
+  -f mlflow-values.yaml

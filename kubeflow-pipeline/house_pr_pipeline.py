@@ -1,12 +1,12 @@
 from kfp import dsl, compiler
 from kfp.dsl import Input, Output, Model, Dataset, Metrics
 
-BASE_IMAGE = "python:3.11-slim"
+BASE_IMAGE = "vimalpillai/kubeflow-base-image:v1"
 
 # Data Preprocessing step
 @dsl.component(
     base_image=BASE_IMAGE,
-    packages_to_install=["pandas==2.2.2", "numpy==1.26.4"]
+    # packages_to_install=["pandas==2.2.2", "numpy==1.26.4"]
 )
 def preprocess_data(
     raw_data_path: str,
@@ -60,8 +60,8 @@ def preprocess_data(
 # Feature engineering step
 @dsl.component(
     base_image=BASE_IMAGE,
-    packages_to_install=["pandas==2.2.2", "numpy==1.26.4",
-                         "scikit-learn==1.5.1", "joblib==1.4.2"]
+    # packages_to_install=["pandas==2.2.2", "numpy==1.26.4",
+    #                      "scikit-learn==1.5.1", "joblib==1.4.2"]
 )
 def feature_engineering(
     cleaned_data: Input[Dataset],
@@ -131,8 +131,8 @@ def feature_engineering(
 # Train + Register model in MLFlow
 @dsl.component(
     base_image=BASE_IMAGE,
-    packages_to_install=[ "pandas==2.2.2", "numpy==1.26.4", "scikit-learn==1.5.1",
-            "xgboost==2.1.1", "mlflow==2.16.0", "joblib==1.4.2", "skops",]
+    # packages_to_install=[ "pandas==2.2.2", "numpy==1.26.4", "scikit-learn==1.5.1",
+    #         "xgboost==2.1.1", "mlflow==2.16.0", "joblib==1.4.2", "skops",]
 )
 def train_and_register(
     featured_data: Input[Dataset],
@@ -157,7 +157,8 @@ def train_and_register(
     from sklearn.linear_model import LinearRegression
     from sklearn.metrics import mean_absolute_error, r2_score
     from sklearn.model_selection import train_test_split
-
+    import os
+    os.environ["GIT_PYTHON_REFRESH"] = "quiet"
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger("train-model")
@@ -203,17 +204,18 @@ def train_and_register(
         metrics.log_metric("r2",r2)
         
 
-        mlflow.sklearn.log_model(
-            model, "tuned_model",
+        model_info = mlflow.sklearn.log_model(
+            sk_model=model,
+            name="tuned_model",
             skops_trusted_types=[
-                "sklearn.tree._tree.Tree",
-                "xgboost.core.Booster",
-                "xgboost.sklearn.XGBRegressor",
-                "collections.OrderedDict",
-            ],
+            "sklearn.tree._tree.Tree",          
+            "xgboost.core.Booster",             
+            "xgboost.sklearn.XGBRegressor",     
+            "collections.OrderedDict",
+        ],
         )
         run_id = run.info.run_id
-        model_uri = f"runs:/{run_id}/tuned_model"
+        model_uri = model_info.model_uri 
 
         # Save model as a KFP artifact
         joblib.dump(model, trained_model.path)
@@ -230,6 +232,7 @@ def train_and_register(
         version = client.create_model_version(
             name=model_name, source=model_uri, run_id=run_id
         )
+ 
         client.set_registered_model_alias(
             name=model_name, version=version.version, alias="Champion"
         )
