@@ -1,0 +1,332 @@
+# PIPELINE DEFINITION
+# Name: house-price-pipeline
+# Description: Preprocess, feature engineering, train and register model
+# Inputs:
+#    mlflow_tracking_uri: str
+#    model_config: dict
+#    raw_data_path: str
+components:
+  comp-feature-engineering:
+    executorLabel: exec-feature-engineering
+    inputDefinitions:
+      artifacts:
+        cleaned_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        featured_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        preprocessor_artifact:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-preprocess-data:
+    executorLabel: exec-preprocess-data
+    inputDefinitions:
+      parameters:
+        raw_data_path:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        cleaned_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-train-and-register:
+    executorLabel: exec-train-and-register
+    inputDefinitions:
+      artifacts:
+        featured_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        mlflow_tracking_uri:
+          parameterType: STRING
+        model_config:
+          parameterType: STRUCT
+    outputDefinitions:
+      artifacts:
+        metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        trained_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-feature-engineering:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - feature_engineering
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'numpy==1.26.4' 'scikit-learn==1.5.1' 'joblib==1.4.2'  &&  python3 -m\
+          \ pip install --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps'\
+          \ 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\
+          \n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef feature_engineering(\n    cleaned_data: Input[Dataset],\n   \
+          \ featured_data: Output[Dataset],\n    preprocessor_artifact: Output[Model]\n\
+          ):\n    import logging\n    from datetime import datetime\n\n    import\
+          \ joblib\n    import numpy as np\n    import pandas as pd\n    from sklearn.compose\
+          \ import ColumnTransformer\n    from sklearn.impute import SimpleImputer\n\
+          \    from sklearn.pipeline import Pipeline\n    from sklearn.preprocessing\
+          \ import OneHotEncoder\n\n    logging.basicConfig(level=logging.INFO,\n\
+          \                        format=\"%(asctime)s - %(name)s - %(levelname)s\
+          \ - %(message)s\")\n    logger = logging.getLogger(\"feature-engineering\"\
+          )\n\n    df = pd.read_csv(cleaned_data.path)\n\n    # --- create_features\
+          \ ---\n    df_featured = df.copy()\n    df_featured[\"house_age\"] = datetime.now().year\
+          \ - df[\"year_built\"]\n    df_featured[\"price_per_sqft\"] = df_featured[\"\
+          price\"] / df_featured[\"sqft\"]\n    df_featured[\"bed_bath_ratio\"] =\
+          \ (\n        (df_featured[\"bedrooms\"] / df_featured[\"bathrooms\"])\n\
+          \        .replace([np.inf, -np.inf], np.nan)\n        .fillna(0)\n    )\n\
+          \    logger.info(f\"Created featured dataset with shape: {df_featured.shape}\"\
+          )\n\n    # --- create_preprocessor ---\n    categorical_features = [\"location\"\
+          , \"condition\"]\n    numerical_features = [\"sqft\", \"bedrooms\", \"bathrooms\"\
+          ,\n                            \"house_age\", \"price_per_sqft\", \"bed_bath_ratio\"\
+          ]\n\n    preprocessor = ColumnTransformer(\n        transformers=[\n   \
+          \         (\"num\", Pipeline([(\"impute\", SimpleImputer(strategy=\"mean\"\
+          ))]),\n                numerical_features),\n            (\"cat\", Pipeline([(\"\
+          onehot\", OneHotEncoder(handle_unknown=\"ignore\"))]),\n               \
+          \ categorical_features),\n        ]\n    )\n\n    X = df_featured.drop(columns=[\"\
+          price\"], errors=\"ignore\")\n    y = df_featured[\"price\"] if \"price\"\
+          \ in df_featured.columns else None\n    X_transformed = preprocessor.fit_transform(X)\n\
+          \    if hasattr(X_transformed, \"toarray\"):  # in case the output is sparse\n\
+          \        X_transformed = X_transformed.toarray()\n    logger.info(\"Fitted\
+          \ the preprocessor and transformed the features\")\n\n    joblib.dump(preprocessor,\
+          \ preprocessor_artifact.path)\n    preprocessor_artifact.metadata[\"framework\"\
+          ] = \"sklearn\"\n\n    df_transformed = pd.DataFrame(X_transformed)\n  \
+          \  if y is not None:\n        df_transformed[\"price\"] = y.values\n   \
+          \ # df_transformed.to_csv(featured_data.path, index=False)\n    df_transformed.to_csv(featured_data.path,\
+          \ index=False)\n    logger.info(f\"Saved fully preprocessed data to {featured_data.path}\"\
+          )\n\n"
+        image: python:3.11-slim
+    exec-preprocess-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - preprocess_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'numpy==1.26.4'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef preprocess_data(\n    raw_data_path: str,\n    cleaned_data:\
+          \ Output[Dataset]\n):\n    import logging\n    import pandas as pd\n\n \
+          \   logging.basicConfig(level=logging.INFO,\n                        format=\"\
+          %(asctime)s - %(name)s - %(levelname)s - %(message)s\")\n    logger = logging.getLogger(\"\
+          data-preprocessor\")\n\n    logger.info(f\"Loading data from {raw_data_path}\"\
+          )\n    df = pd.read_csv(raw_data_path)\n    logger.info(f\"Loaded data with\
+          \ shape: {df.shape}\")\n\n    df_cleaned = df.copy()\n\n    # Handle missing\
+          \ values\n    for column in df_cleaned.columns:\n        missing_count =\
+          \ df_cleaned[column].isnull().sum()\n        if missing_count > 0:\n   \
+          \         if pd.api.types.is_numeric_dtype(df_cleaned[column]):\n      \
+          \          fill_value = df_cleaned[column].median()\n                kind\
+          \ = \"median\"\n            else:\n                fill_value = df_cleaned[column].mode()[0]\n\
+          \                kind = \"mode\"\n            df_cleaned[column] = df_cleaned[column].fillna(fill_value)\n\
+          \            logger.info(f\"Filled missing values in {column} with {kind}:\
+          \ {fill_value}\")\n\n    # Remove price outliers (IQR)\n    q1 = df_cleaned[\"\
+          price\"].quantile(0.25)\n    q3 = df_cleaned[\"price\"].quantile(0.75)\n\
+          \    iqr = q3 - q1\n    lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr\n\n\
+          \    mask = (df_cleaned[\"price\"] >= lower) & (df_cleaned[\"price\"] <=\
+          \ upper)\n    n_outliers = int((~mask).sum())\n    if n_outliers:\n    \
+          \    logger.info(f\"Found {n_outliers} outliers in price column\")\n   \
+          \     df_cleaned = df_cleaned[mask]\n        logger.info(f\"Removed outliers.\
+          \ New dataset shape: {df_cleaned.shape}\")\n\n    df_cleaned.to_csv(cleaned_data.path,\
+          \ index=False)\n    cleaned_data.metadata[\"rows\"] = int(df_cleaned.shape[0])\n\
+          \    cleaned_data.metadata[\"columns\"] = int(df_cleaned.shape[1])\n   \
+          \ logger.info(f\"Saved processed data to {cleaned_data.path}\")\n\n"
+        image: python:3.11-slim
+    exec-train-and-register:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_and_register
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'numpy==1.26.4' 'scikit-learn==1.5.1' 'xgboost==2.1.1' 'mlflow==2.16.0'\
+          \ 'joblib==1.4.2' 'skops'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_and_register(\n    featured_data: Input[Dataset],\n   \
+          \ model_config: dict,\n    mlflow_tracking_uri: str,\n    trained_model:\
+          \ Output[Model],\n    metrics: Output[Metrics]\n):\n    import logging\n\
+          \    import platform\n\n    import joblib\n    import mlflow\n    import\
+          \ mlflow.exceptions\n    import mlflow.sklearn\n    import numpy as np\n\
+          \    import pandas as pd\n    import sklearn\n    import xgboost as xgb\n\
+          \    from mlflow import MlflowClient\n    from sklearn.ensemble import GradientBoostingRegressor,\
+          \ RandomForestRegressor\n    from sklearn.linear_model import LinearRegression\n\
+          \    from sklearn.metrics import mean_absolute_error, r2_score\n    from\
+          \ sklearn.model_selection import train_test_split\n\n    logging.basicConfig(level=logging.INFO,\n\
+          \                        format=\"%(asctime)s - %(name)s - %(levelname)s\
+          \ - %(message)s\")\n    logger = logging.getLogger(\"train-model\")\n\n\
+          \    model_map = {\n        \"LinearRegression\": LinearRegression,\n  \
+          \      \"RandomForest\": RandomForestRegressor,\n        \"GradientBoosting\"\
+          : GradientBoostingRegressor,\n        \"XGBoost\": xgb.XGBRegressor,\n \
+          \   }\n\n    model_name = model_config[\"name\"]\n    algo = model_config[\"\
+          best_model\"]\n    params = model_config.get(\"parameters\", {}) or {}\n\
+          \    target = model_config[\"target_variable\"]\n\n    if algo not in model_map:\n\
+          \        raise ValueError(f\"Unsupported model: {algo}\")\n\n    mlflow.set_tracking_uri(mlflow_tracking_uri)\n\
+          \    mlflow.set_experiment(model_name)\n\n    data = pd.read_csv(featured_data.path)\n\
+          \    X = data.drop(columns=[target])\n    y = data[target]\n    X_train,\
+          \ X_test, y_train, y_test = train_test_split(\n        X, y, test_size=0.2,\
+          \ random_state=42\n    )\n\n    model = model_map[algo](**params)\n\n  \
+          \  with mlflow.start_run(run_name=\"final_training\") as run:\n        logger.info(f\"\
+          Training model: {algo}\")\n        model.fit(X_train, y_train)\n       \
+          \ y_pred = model.predict(X_test)\n\n        mae = float(mean_absolute_error(y_test,\
+          \ y_pred))\n        r2 = float(r2_score(y_test, y_pred))\n\n        mlflow.log_params(params)\n\
+          \        mlflow.log_metrics({\"mae\": mae, \"r2\": r2})\n        metrics.log_metric(\"\
+          mae\",mae)\n        metrics.log_metric(\"r2\",r2)\n\n\n        mlflow.sklearn.log_model(\n\
+          \            model, \"tuned_model\",\n            skops_trusted_types=[\n\
+          \                \"sklearn.tree._tree.Tree\",\n                \"xgboost.core.Booster\"\
+          ,\n                \"xgboost.sklearn.XGBRegressor\",\n                \"\
+          collections.OrderedDict\",\n            ],\n        )\n        run_id =\
+          \ run.info.run_id\n        model_uri = f\"runs:/{run_id}/tuned_model\"\n\
+          \n        # Save model as a KFP artifact\n        joblib.dump(model, trained_model.path)\n\
+          \        trained_model.metadata.update({\"algorithm\":algo, \"mae\":mae,\"\
+          r2\": r2})\n\n        # Register\n        logger.info(\"Registering model\
+          \ to MLflow model registry\")\n        client = MlflowClient()\n       \
+          \ try:\n            client.create_registered_model(model_name)\n       \
+          \ except mlflow.exceptions.RestException:\n            pass  # already exists\n\
+          \n        version = client.create_model_version(\n            name=model_name,\
+          \ source=model_uri, run_id=run_id\n        )\n        client.set_registered_model_alias(\n\
+          \            name=model_name, version=version.version, alias=\"Champion\"\
+          \n        )\n\n        description = (\n            f\"Model for predicting\
+          \ house prices.\\n\"\n            f\"Algorithm: {algo}\\n\"\n          \
+          \  f\"Hyperparameters: {params}\\n\"\n            f\"Features used: All\
+          \ features in the dataset except the target variable\\n\"\n            f\"\
+          Target variable: {target}\\n\"\n            f\"Trained on dataset: {featured_data.uri}\\\
+          n\"\n            f\"Model saved at: {trained_model.uri}\\n\"\n         \
+          \   f\"Performance metrics:\\n\"\n            f\"  - MAE: {mae:.2f}\\n\"\
+          \n            f\"  - R\xB2: {r2:.4f}\"\n        )\n        client.update_registered_model(name=model_name,\
+          \ description=description)\n\n        tags = {\n            \"algorithm\"\
+          : algo,\n            \"hyperparameters\": str(params),\n            \"features\"\
+          : \"All features except target variable\",\n            \"target_variable\"\
+          : target,\n            \"training_dataset\": featured_data.uri,\n      \
+          \      \"model_path\": trained_model.uri,\n            \"python_version\"\
+          : platform.python_version(),\n            \"scikit_learn_version\": sklearn.__version__,\n\
+          \            \"xgboost_version\": xgb.__version__,\n            \"pandas_version\"\
+          : pd.__version__,\n            \"numpy_version\": np.__version__,\n    \
+          \    }\n        for k, v in tags.items():\n            client.set_registered_model_tag(model_name,\
+          \ k, v)\n\n        logger.info(f\"Final MAE: {mae:.2f}, R2: {r2:.4f}\")\
+          \ \n\n"
+        image: python:3.11-slim
+pipelineInfo:
+  description: Preprocess, feature engineering, train and register model
+  name: house-price-pipeline
+root:
+  dag:
+    tasks:
+      feature-engineering:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-feature-engineering
+        dependentTasks:
+        - preprocess-data
+        inputs:
+          artifacts:
+            cleaned_data:
+              taskOutputArtifact:
+                outputArtifactKey: cleaned_data
+                producerTask: preprocess-data
+        taskInfo:
+          name: feature-engineering
+      preprocess-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-preprocess-data
+        inputs:
+          parameters:
+            raw_data_path:
+              componentInputParameter: raw_data_path
+        taskInfo:
+          name: preprocess-data
+      train-and-register:
+        cachingOptions: {}
+        componentRef:
+          name: comp-train-and-register
+        dependentTasks:
+        - feature-engineering
+        inputs:
+          artifacts:
+            featured_data:
+              taskOutputArtifact:
+                outputArtifactKey: featured_data
+                producerTask: feature-engineering
+          parameters:
+            mlflow_tracking_uri:
+              componentInputParameter: mlflow_tracking_uri
+            model_config:
+              componentInputParameter: model_config
+        taskInfo:
+          name: train-and-register
+  inputDefinitions:
+    parameters:
+      mlflow_tracking_uri:
+        parameterType: STRING
+      model_config:
+        parameterType: STRUCT
+      raw_data_path:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.17.0

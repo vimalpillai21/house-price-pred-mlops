@@ -9,6 +9,7 @@ dependencies = [
     "dvc-s3>=3.3.0",
     "fastapi[standard]>=0.142.2",
     "jupyterlab>=4.6.4",
+    "kfp>=2.17.0",
     "mlflow>=3.16.1",
     "numpy>=2.4.6",
     "pandas>=3.0.6",
