@@ -1,0 +1,6 @@
+[core]
+    remote = vimal-house-pr
+['remote "vimal-house-pr"']
+    url = s3://vimal-house-pr
+    connect_timeout = 120
+    read_timeout = 300
