@@ -1,0 +1,18 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: house-price-model
+  namespace: ml-demo
+spec:
+  transformers:
+    containers:
+      - name: kserve-container
+        image: vimalpillai/custom-kserve-transformer:v3
+        imagePullPolicy: Always
+        args: ["--model_name","house-price-model"]
+  predictor:
+    serviceAccountName: sa-s3-access
+    model:
+      modelFormat:
+        name: sklearn
+      storageUri: ""
