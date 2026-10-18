@@ -4,7 +4,7 @@ metadata:
   name: house-price-model
   namespace: ml-demo
 spec:
-  transformers:
+  transformer:
     containers:
       - name: kserve-container
         image: vimalpillai/custom-kserve-transformer:v3
