@@ -166,9 +166,9 @@ def main(args):
     logger.info(f"Final MAE: {mae:.2f}, R2: {r2:.4f}")
 
     # Save model locally (always)
-    trained_dir = os.path.join(args.model_dir, "trained")
+    # trained_dir = os.path.join(args.model_dir, "trained")
     os.makedirs(trained_dir, exist_ok=True)
-    save_path = os.path.join(trained_dir, f"{model_name}.pkl")
+    save_path = os.path.join(args.model_dir, f"{model_name}.pkl")
     joblib.dump(model, save_path)
     logger.info(f"Saved trained model to: {save_path}")
 
