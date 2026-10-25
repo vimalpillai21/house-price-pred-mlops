@@ -1,0 +1,72 @@
+name: Mlops
+
+on:
+  push:
+    branches: [cicd]
+
+env:
+  AWS_REGION: ap-south-1
+  S3_BUCKET: 
+
+jobs:
+  train-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run Preprocessing
+        run: |
+          python helper_functions/run_processing.py
+      
+      - name: Feature Engineering
+        run: |
+          python helper_functions/feature_engineering.py \
+            --input data/processed/cleaned_house_data.csv
+            --output data/processed/featured_house_data.csv
+            --preprocessor models/trained/
+      
+      - name: Model Training
+        run: |
+          python helper_functions/train_model.py \
+          --config configs/model_config.yaml \
+          --data data/featured_house_data.csv \
+          --model-dir models/trained/
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+        
+      - name: Push model to S3 directly
+        run: |
+          aws s3 cp models/trained/preprocessor.pkl s3://vimal-house-price/models/preprocessor.pkl
+          aws s3 cp models/trained/house_price_model.pkl s3://vimal-house-price/models/house_price_model.pkl
+
+      
+      - name: Update inference.yaml with S3 model path
+        run: |
+          MODEL_URI="s3://vimal-house-price/models/house_price_model.pkl"
+          sed -i "s|storageUri: .*|storageUri: $MODEL_URI|g" k8s/inference.yaml
+      
+      - name: Commit updated inference.yaml
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Github Action"
+          git add k8s/inference.yaml
+          git commit -m "Updated model S3 Path" || echo "No Changes"
+          git push || echo "No changes to push"
