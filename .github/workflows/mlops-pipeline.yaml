@@ -42,7 +42,7 @@ jobs:
         run: |
           python helper_functions/train_model.py \
           --config configs/model_config.yaml \
-          --data data/featured_house_data.csv \
+          --data data/processed/featured_house_data.csv \
           --model-dir models/trained/
       
       - name: Configure AWS credentials
