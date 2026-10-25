@@ -43,7 +43,7 @@ jobs:
           python helper_functions/train_model.py \
           --config configs/model_config.yaml \
           --data data/processed/featured_house_data.csv \
-          --model-dir models/trained/
+          --model-dir models/trained
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
