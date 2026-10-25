@@ -2,7 +2,7 @@ name: Mlops
 
 on:
   push:
-    branches: [cicd]
+    branches: [git-cicd-argocd]
 
 env:
   AWS_REGION: ap-south-1
