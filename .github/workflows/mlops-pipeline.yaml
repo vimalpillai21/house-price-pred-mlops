@@ -34,8 +34,8 @@ jobs:
       - name: Feature Engineering
         run: |
           python helper_functions/feature_engineering.py \
-            --input data/processed/cleaned_house_data.csv
-            --output data/processed/featured_house_data.csv
+            --input data/processed/cleaned_house_data.csv \
+            --output data/processed/featured_house_data.csv \
             --preprocessor models/trained/
       
       - name: Model Training
