@@ -167,13 +167,13 @@ def main(args):
 
     # Save model locally (always)
     # trained_dir = os.path.join(args.model_dir, "trained")
-    os.makedirs(trained_dir, exist_ok=True)
+    # os.makedirs(trained_dir, exist_ok=True)
     save_path = os.path.join(args.model_dir, f"{model_name}.pkl")
     joblib.dump(model, save_path)
     logger.info(f"Saved trained model to: {save_path}")
 
     # Save metrics locally (always) so CI can read/upload them
-    metrics_path = os.path.join(trained_dir, f"{model_name}_metrics.json")
+    metrics_path = os.path.join(args.model_dir, f"{model_name}_metrics.json")
     with open(metrics_path, "w") as f:
         json.dump({"mae": mae, "r2": r2}, f, indent=2)
     logger.info(f"Saved metrics to: {metrics_path}")

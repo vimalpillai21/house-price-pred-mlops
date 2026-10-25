@@ -40,7 +40,7 @@ jobs:
       
       - name: Model Training
         run: |
-          python helper_functions/train_model.py \
+          python helper_functions/train_model_no_mlflow.py \
           --config configs/model_config.yaml \
           --data data/processed/featured_house_data.csv \
           --model-dir models/trained
