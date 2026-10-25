@@ -15,4 +15,4 @@ spec:
     model:
       modelFormat:
         name: sklearn
-      storageUri: ""
+      storageUri: s3://vimal-house-price/models/house_price_model.pkl
